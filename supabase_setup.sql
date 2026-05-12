@@ -18,6 +18,80 @@ ALTER TABLE rendez_vous  ALTER COLUMN id SET DEFAULT gen_random_uuid()::text;
 
 
 -- ════════════════════════════════════════════════════════════
+-- FIX: migrate contacts.type from French to English values
+-- Old constraint allowed only ('personne','entreprise').
+-- New app sends 'person' / 'company' → violates old check.
+-- ════════════════════════════════════════════════════════════
+
+-- 1. Drop the old check constraint (name may vary — covers both)
+ALTER TABLE contacts DROP CONSTRAINT IF EXISTS contacts_type_check;
+ALTER TABLE contacts DROP CONSTRAINT IF EXISTS contacts_type_key;
+
+-- 2. Remap existing French values to English
+UPDATE contacts SET type = 'person'  WHERE type = 'personne';
+UPDATE contacts SET type = 'company' WHERE type = 'entreprise';
+
+-- 3. Re-add constraint with English values
+ALTER TABLE contacts ADD CONSTRAINT contacts_type_check
+  CHECK (type IN ('person', 'company'));
+
+
+-- ════════════════════════════════════════════════════════════
+-- FIX: old French NOT NULL columns block new inserts
+-- The new app only writes to new English columns; old French
+-- columns receive NULL → violates NOT NULL if no DEFAULT set.
+-- Safely drop NOT NULL from every known old French column.
+-- ════════════════════════════════════════════════════════════
+
+DO $$
+DECLARE col TEXT;
+BEGIN
+  -- opportunites
+  FOREACH col IN ARRAY ARRAY[
+    'entreprise','contact','autres_contacts','type_mission',
+    'montant_estime','avancement','date_cloture','statut',
+    'description','commentaires'
+  ] LOOP
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'opportunites'
+        AND column_name = col AND is_nullable = 'NO'
+    ) THEN
+      EXECUTE format('ALTER TABLE opportunites ALTER COLUMN %I DROP NOT NULL', col);
+    END IF;
+  END LOOP;
+
+  -- contacts
+  FOREACH col IN ARRAY ARRAY[
+    'nom','prenom','titre','poste','telephone','email',
+    'raison_sociale','secteur','chiffre_affaires','adresse',
+    'dernier_contact','commentaires','entreprise_id'
+  ] LOOP
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'contacts'
+        AND column_name = col AND is_nullable = 'NO'
+    ) THEN
+      EXECUTE format('ALTER TABLE contacts ALTER COLUMN %I DROP NOT NULL', col);
+    END IF;
+  END LOOP;
+
+  -- rendez_vous
+  FOREACH col IN ARRAY ARRAY[
+    'sujet','heure','duree','contact_id','opportunite_id','notes'
+  ] LOOP
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'rendez_vous'
+        AND column_name = col AND is_nullable = 'NO'
+    ) THEN
+      EXECUTE format('ALTER TABLE rendez_vous ALTER COLUMN %I DROP NOT NULL', col);
+    END IF;
+  END LOOP;
+END $$;
+
+
+-- ════════════════════════════════════════════════════════════
 -- TABLE: opportunites
 -- ════════════════════════════════════════════════════════════
 
@@ -61,6 +135,12 @@ ALTER TABLE opportunites
 ALTER TABLE opportunites
   ADD COLUMN IF NOT EXISTS weighted_amount  NUMERIC
     GENERATED ALWAYS AS (ROUND(estimated_amount * advancement / 100.0, 2)) STORED;
+
+-- Contact references (added after contacts table exists)
+ALTER TABLE opportunites
+  ADD COLUMN IF NOT EXISTS company_id        TEXT REFERENCES contacts(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS main_contact_id   TEXT REFERENCES contacts(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS other_contact_ids TEXT[] NOT NULL DEFAULT '{}';
 
 
 -- ════════════════════════════════════════════════════════════
