@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { Briefcase, Users, Calendar, LogOut } from 'lucide-react';
 import { CRMProvider, useCRM } from './context';
 import { AuthProvider, useAuth } from './lib/AuthContext';
@@ -8,6 +8,7 @@ import Agenda from './pages/Agenda';
 import OpportuniteDetail from './pages/OpportuniteDetail';
 import ContactDetail from './pages/ContactDetail';
 import Login from './pages/Login';
+import SetPassword from './pages/SetPassword';
 import Toast from './components/Toast';
 import DataMigration from './components/DataMigration';
 import Spinner from './components/Spinner';
@@ -28,16 +29,13 @@ function CRMShell() {
         </div>
         <nav className="sidebar-nav">
           <NavLink to="/" end className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <Briefcase size={18} />
-            <span>Pipeline</span>
+            <Briefcase size={18} /><span>Pipeline</span>
           </NavLink>
           <NavLink to="/contacts" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <Users size={18} />
-            <span>Contacts</span>
+            <Users size={18} /><span>Contacts</span>
           </NavLink>
           <NavLink to="/agenda" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <Calendar size={18} />
-            <span>Agenda</span>
+            <Calendar size={18} /><span>Agenda</span>
           </NavLink>
         </nav>
         <div className="sidebar-user" title={user?.email ?? ''}>{user?.email}</div>
@@ -48,8 +46,7 @@ function CRMShell() {
             onClick={signOut}
             title="Se déconnecter"
           >
-            <LogOut size={16} />
-            <span>Déconnexion</span>
+            <LogOut size={16} /><span>Déconnexion</span>
           </button>
         </div>
       </aside>
@@ -69,8 +66,9 @@ function CRMShell() {
   );
 }
 
-function AppShell() {
-  const { user, loading } = useAuth();
+// Handles the main app guard: redirects to /set-password when a setup token is detected
+function AuthGate() {
+  const { user, loading, needsPasswordSetup } = useAuth();
 
   if (loading) {
     return (
@@ -80,6 +78,7 @@ function AppShell() {
     );
   }
 
+  if (needsPasswordSetup) return <Navigate to="/set-password" replace />;
   if (!user) return <Login />;
 
   return (
@@ -93,7 +92,10 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <AppShell />
+        <Routes>
+          <Route path="/set-password" element={<SetPassword />} />
+          <Route path="/*" element={<AuthGate />} />
+        </Routes>
       </BrowserRouter>
     </AuthProvider>
   );

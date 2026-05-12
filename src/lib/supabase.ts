@@ -21,6 +21,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storage: inMemoryStorage,
     persistSession: true,  // persist within the memory store (not localStorage)
     autoRefreshToken: true,
-    detectSessionInUrl: false,
+    detectSessionInUrl: true,
   },
 });
