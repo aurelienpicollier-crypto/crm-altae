@@ -1,110 +1,116 @@
 -- ============================================================
--- ALTAE CRM — Supabase Migration Setup v2
+-- ALTAE CRM — Patch: add missing columns to existing tables
 -- Run in: Supabase Dashboard > SQL Editor
--- Safe to re-run (idempotent).
--- If you ran the previous script, the old tables (opportunites,
--- rendez_vous) are untouched — you may drop them manually after
--- a successful migration.
+-- 100% safe to re-run — ADD COLUMN IF NOT EXISTS throughout.
+-- Existing columns are silently skipped.
 -- ============================================================
 
 
--- ── 0. CLEAN PREVIOUS RUN (idempotent) ───────────────────────
-DROP TRIGGER  IF EXISTS trg_opportunity_numero ON opportunites;
-DROP FUNCTION IF EXISTS fn_set_opportunity_numero();
-DROP SEQUENCE IF EXISTS seq_opportunity_numero;
+-- ════════════════════════════════════════════════════════════
+-- FIX: ensure id columns auto-generate if they have no DEFAULT
+-- (existing tables created with id TEXT and no DEFAULT will
+--  throw "null value in column id" on every INSERT)
+-- ════════════════════════════════════════════════════════════
+
+ALTER TABLE opportunites ALTER COLUMN id SET DEFAULT gen_random_uuid()::text;
+ALTER TABLE contacts     ALTER COLUMN id SET DEFAULT gen_random_uuid()::text;
+ALTER TABLE rendez_vous  ALTER COLUMN id SET DEFAULT gen_random_uuid()::text;
 
 
--- ── 1. SEQUENCES & AUTO-NUMERO ───────────────────────────────
+-- ════════════════════════════════════════════════════════════
+-- TABLE: opportunites
+-- ════════════════════════════════════════════════════════════
 
-CREATE SEQUENCE seq_opportunity_numero START 1;
+-- Auto-numero: sequence + trigger (idempotent) ───────────────
+CREATE SEQUENCE IF NOT EXISTS seq_opportunity_numero START 1;
 
 CREATE OR REPLACE FUNCTION fn_set_opportunity_numero()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
   NEW.numero := 'OPP-' || EXTRACT(YEAR FROM NOW())::TEXT
-                || '-' || LPAD(NEXTVAL('seq_opportunity_numero')::TEXT, 3, '0');
+              || '-' || LPAD(NEXTVAL('seq_opportunity_numero')::TEXT, 3, '0');
   RETURN NEW;
 END;
 $$;
 
-
--- ── 2. TABLES ────────────────────────────────────────────────
-
-CREATE TABLE IF NOT EXISTS opportunites (
-  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  numero           TEXT UNIQUE,                          -- set by trigger
-  company          TEXT NOT NULL,
-  main_contact     TEXT,
-  other_contacts   TEXT,
-  estimated_amount NUMERIC        NOT NULL DEFAULT 0,
-  advancement      NUMERIC        NOT NULL DEFAULT 0
-                     CHECK (advancement IN (0,15,30,50,75,100)),
-  weighted_amount  NUMERIC GENERATED ALWAYS AS
-                     (ROUND(estimated_amount * advancement / 100.0, 2)) STORED,
-  closing_date     DATE,
-  mission_type     TEXT,
-  status           TEXT           NOT NULL DEFAULT 'active'
-                     CHECK (status IN ('active','won','lost')),
-  description      TEXT,
-  comments         JSONB          NOT NULL DEFAULT '[]',
-  created_at       TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
-  created_by       UUID           REFERENCES auth.users(id) DEFAULT auth.uid()
-);
-
+DROP TRIGGER IF EXISTS trg_opportunity_numero ON opportunites;
 CREATE TRIGGER trg_opportunity_numero
-BEFORE INSERT ON opportunites
-FOR EACH ROW EXECUTE FUNCTION fn_set_opportunity_numero();
+  BEFORE INSERT ON opportunites
+  FOR EACH ROW EXECUTE FUNCTION fn_set_opportunity_numero();
+
+-- Columns ────────────────────────────────────────────────────
+-- Note: estimated_amount and advancement must exist BEFORE
+-- weighted_amount (a GENERATED column) is added below.
+ALTER TABLE opportunites
+  ADD COLUMN IF NOT EXISTS numero           TEXT         UNIQUE,
+  ADD COLUMN IF NOT EXISTS company          TEXT         NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS main_contact     TEXT,
+  ADD COLUMN IF NOT EXISTS other_contacts   TEXT,
+  ADD COLUMN IF NOT EXISTS estimated_amount NUMERIC      NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS advancement      NUMERIC      NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS closing_date     DATE,
+  ADD COLUMN IF NOT EXISTS mission_type     TEXT,
+  ADD COLUMN IF NOT EXISTS status           TEXT         NOT NULL DEFAULT 'active',
+  ADD COLUMN IF NOT EXISTS description      TEXT,
+  ADD COLUMN IF NOT EXISTS comments         JSONB        NOT NULL DEFAULT '[]',
+  ADD COLUMN IF NOT EXISTS created_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  ADD COLUMN IF NOT EXISTS created_by       UUID         REFERENCES auth.users(id) DEFAULT auth.uid();
+
+-- weighted_amount is GENERATED — needs a separate statement
+-- so that estimated_amount and advancement already exist.
+ALTER TABLE opportunites
+  ADD COLUMN IF NOT EXISTS weighted_amount  NUMERIC
+    GENERATED ALWAYS AS (ROUND(estimated_amount * advancement / 100.0, 2)) STORED;
 
 
-CREATE TABLE IF NOT EXISTS contacts (
-  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  type                TEXT        NOT NULL CHECK (type IN ('person','company')),
-  -- Person fields
-  first_name          TEXT,
-  last_name           TEXT,
-  position            TEXT,
-  phone               TEXT,
-  email               TEXT,
-  last_contact_date   DATE,
-  parent_company_id   UUID        REFERENCES contacts(id) ON DELETE SET NULL,
-  -- Company fields
-  company_name        TEXT,
-  sector              TEXT,
-  revenue             NUMERIC,
-  address             TEXT,
-  -- Common
-  comments            JSONB       NOT NULL DEFAULT '[]',
-  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  created_by          UUID        REFERENCES auth.users(id) DEFAULT auth.uid()
-);
+-- ════════════════════════════════════════════════════════════
+-- TABLE: contacts
+-- ════════════════════════════════════════════════════════════
+
+ALTER TABLE contacts
+  ADD COLUMN IF NOT EXISTS type               TEXT        NOT NULL DEFAULT 'person',
+  ADD COLUMN IF NOT EXISTS first_name         TEXT,
+  ADD COLUMN IF NOT EXISTS last_name          TEXT,
+  ADD COLUMN IF NOT EXISTS position           TEXT,
+  ADD COLUMN IF NOT EXISTS phone              TEXT,
+  ADD COLUMN IF NOT EXISTS email              TEXT,
+  ADD COLUMN IF NOT EXISTS last_contact_date  DATE,
+  ADD COLUMN IF NOT EXISTS parent_company_id  TEXT        REFERENCES contacts(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS company_name       TEXT,
+  ADD COLUMN IF NOT EXISTS sector             TEXT,
+  ADD COLUMN IF NOT EXISTS revenue            NUMERIC,
+  ADD COLUMN IF NOT EXISTS address            TEXT,
+  ADD COLUMN IF NOT EXISTS comments           JSONB       NOT NULL DEFAULT '[]',
+  ADD COLUMN IF NOT EXISTS created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  ADD COLUMN IF NOT EXISTS created_by         UUID        REFERENCES auth.users(id) DEFAULT auth.uid();
 
 
-CREATE TABLE IF NOT EXISTS rendez_vous (
-  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  title                 TEXT        NOT NULL,
-  date                  DATE        NOT NULL,
-  time                  TIME        NOT NULL,
-  duration              INTEGER     NOT NULL DEFAULT 60,
-  subject               TEXT,
-  linked_contact_id     UUID        REFERENCES contacts(id) ON DELETE SET NULL,
-  linked_opportunity_id UUID        REFERENCES opportunites(id) ON DELETE SET NULL,
-  notes                 TEXT,
-  created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  created_by            UUID        REFERENCES auth.users(id) DEFAULT auth.uid()
-);
+-- ════════════════════════════════════════════════════════════
+-- TABLE: rendez_vous
+-- ════════════════════════════════════════════════════════════
+
+ALTER TABLE rendez_vous
+  ADD COLUMN IF NOT EXISTS title                 TEXT        NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS date                  DATE        NOT NULL DEFAULT CURRENT_DATE,
+  ADD COLUMN IF NOT EXISTS time                  TIME        NOT NULL DEFAULT '09:00',
+  ADD COLUMN IF NOT EXISTS duration              INTEGER     NOT NULL DEFAULT 60,
+  ADD COLUMN IF NOT EXISTS subject               TEXT,
+  ADD COLUMN IF NOT EXISTS linked_contact_id     TEXT        REFERENCES contacts(id)    ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS linked_opportunity_id TEXT        REFERENCES opportunites(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS notes                 TEXT,
+  ADD COLUMN IF NOT EXISTS created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  ADD COLUMN IF NOT EXISTS created_by            UUID        REFERENCES auth.users(id) DEFAULT auth.uid();
 
 
--- ── 3. ROW LEVEL SECURITY ────────────────────────────────────
+-- ════════════════════════════════════════════════════════════
+-- ROW LEVEL SECURITY
+-- ════════════════════════════════════════════════════════════
 
 ALTER TABLE opportunites ENABLE ROW LEVEL SECURITY;
-ALTER TABLE contacts      ENABLE ROW LEVEL SECURITY;
-ALTER TABLE rendez_vous        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE contacts     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rendez_vous  ENABLE ROW LEVEL SECURITY;
 
--- Drop & recreate policies (safe to re-run)
+-- Drop existing policies then recreate (safe to re-run)
 DO $$ DECLARE t TEXT; op TEXT;
 BEGIN
   FOREACH t IN ARRAY ARRAY['opportunites','contacts','rendez_vous'] LOOP
@@ -114,31 +120,52 @@ BEGIN
   END LOOP;
 END $$;
 
--- opportunites
 CREATE POLICY auth_select ON opportunites FOR SELECT TO authenticated USING (true);
 CREATE POLICY auth_insert ON opportunites FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY auth_update ON opportunites FOR UPDATE TO authenticated USING (true);
 CREATE POLICY auth_delete ON opportunites FOR DELETE TO authenticated USING (true);
 
--- contacts
 CREATE POLICY auth_select ON contacts FOR SELECT TO authenticated USING (true);
 CREATE POLICY auth_insert ON contacts FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY auth_update ON contacts FOR UPDATE TO authenticated USING (true);
 CREATE POLICY auth_delete ON contacts FOR DELETE TO authenticated USING (true);
 
--- rendez_vous
 CREATE POLICY auth_select ON rendez_vous FOR SELECT TO authenticated USING (true);
 CREATE POLICY auth_insert ON rendez_vous FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY auth_update ON rendez_vous FOR UPDATE TO authenticated USING (true);
 CREATE POLICY auth_delete ON rendez_vous FOR DELETE TO authenticated USING (true);
 
 
--- ── 4. REALTIME ──────────────────────────────────────────────
--- Broadcasts row-level changes to connected clients.
-ALTER PUBLICATION supabase_realtime ADD TABLE opportunites, contacts, rendez_vous;
+-- ════════════════════════════════════════════════════════════
+-- REALTIME
+-- Each ADD TABLE is wrapped individually so an already-added
+-- table doesn't abort the whole script.
+-- ════════════════════════════════════════════════════════════
+
+DO $$
+BEGIN
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE opportunites;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE contacts;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE rendez_vous;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+END $$;
 
 
--- ── 5. VERIFY ────────────────────────────────────────────────
--- Run as anon to confirm no data is exposed without a JWT:
--- SET ROLE anon; SELECT * FROM opportunites; -- must return 0 rows
--- RESET ROLE;
+-- ════════════════════════════════════════════════════════════
+-- VERIFY (run manually to check results)
+-- ════════════════════════════════════════════════════════════
+-- SELECT column_name, data_type, is_nullable, column_default
+-- FROM   information_schema.columns
+-- WHERE  table_name IN ('opportunites','contacts','rendez_vous')
+--   AND  table_schema = 'public'
+-- ORDER  BY table_name, ordinal_position;

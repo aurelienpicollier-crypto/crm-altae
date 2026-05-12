@@ -42,7 +42,7 @@ export default function OpportuniteForm({ initial, saving, error, onSave, onClos
       estimated_amount: parseFloat(montant) || 0,
       advancement,
       status,
-      closing_date:     closingDate,
+      closing_date:     closingDate || undefined,
       description:      description.trim(),
       comments:         initial?.comments ?? [],
     });

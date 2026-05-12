@@ -45,8 +45,8 @@ export default function Pipeline() {
         if (uiStage !== filterStage) return false;
       }
       if (filterType    && o.mission_type  !== filterType)    return false;
-      if (filterDateMin && o.closing_date  <  filterDateMin)  return false;
-      if (filterDateMax && o.closing_date  >  filterDateMax)  return false;
+      if (filterDateMin && (!o.closing_date || o.closing_date < filterDateMin)) return false;
+      if (filterDateMax && (!o.closing_date || o.closing_date > filterDateMax)) return false;
       return true;
     });
   }, [data.opportunities, filterStage, filterType, filterDateMin, filterDateMax]);

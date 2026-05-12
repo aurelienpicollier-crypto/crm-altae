@@ -72,7 +72,7 @@ export default function ContactDetail() {
         ...contact!.comments,
         { date: new Date().toISOString(), author: user?.email ?? 'moi', text: newComment.trim() },
       ];
-      await updateContact(contact!.id, { ...contact!, comments: newComments });
+      await updateContact(contact!.id, { comments: newComments });
       setNewComment('');
     } finally {
       setAddingCmt(false);
