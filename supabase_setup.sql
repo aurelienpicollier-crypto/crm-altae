@@ -9,7 +9,7 @@
 
 
 -- ── 0. CLEAN PREVIOUS RUN (idempotent) ───────────────────────
-DROP TRIGGER  IF EXISTS trg_opportunity_numero ON opportunities;
+DROP TRIGGER  IF EXISTS trg_opportunity_numero ON opportunites;
 DROP FUNCTION IF EXISTS fn_set_opportunity_numero();
 DROP SEQUENCE IF EXISTS seq_opportunity_numero;
 
@@ -34,7 +34,7 @@ $$;
 
 -- ── 2. TABLES ────────────────────────────────────────────────
 
-CREATE TABLE IF NOT EXISTS opportunities (
+CREATE TABLE IF NOT EXISTS opportunites (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   numero           TEXT UNIQUE,                          -- set by trigger
   company          TEXT NOT NULL,
@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS opportunities (
 );
 
 CREATE TRIGGER trg_opportunity_numero
-BEFORE INSERT ON opportunities
+BEFORE INSERT ON opportunites
 FOR EACH ROW EXECUTE FUNCTION fn_set_opportunity_numero();
 
 
@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS contacts (
 );
 
 
-CREATE TABLE IF NOT EXISTS agenda (
+CREATE TABLE IF NOT EXISTS rendez_vous (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title                 TEXT        NOT NULL,
   date                  DATE        NOT NULL,
@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS agenda (
   duration              INTEGER     NOT NULL DEFAULT 60,
   subject               TEXT,
   linked_contact_id     UUID        REFERENCES contacts(id) ON DELETE SET NULL,
-  linked_opportunity_id UUID        REFERENCES opportunities(id) ON DELETE SET NULL,
+  linked_opportunity_id UUID        REFERENCES opportunites(id) ON DELETE SET NULL,
   notes                 TEXT,
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_by            UUID        REFERENCES auth.users(id) DEFAULT auth.uid()
@@ -100,25 +100,25 @@ CREATE TABLE IF NOT EXISTS agenda (
 
 -- ── 3. ROW LEVEL SECURITY ────────────────────────────────────
 
-ALTER TABLE opportunities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE opportunites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE contacts      ENABLE ROW LEVEL SECURITY;
-ALTER TABLE agenda        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rendez_vous        ENABLE ROW LEVEL SECURITY;
 
 -- Drop & recreate policies (safe to re-run)
 DO $$ DECLARE t TEXT; op TEXT;
 BEGIN
-  FOREACH t IN ARRAY ARRAY['opportunities','contacts','agenda'] LOOP
+  FOREACH t IN ARRAY ARRAY['opportunites','contacts','rendez_vous'] LOOP
     FOREACH op IN ARRAY ARRAY['auth_select','auth_insert','auth_update','auth_delete'] LOOP
       EXECUTE format('DROP POLICY IF EXISTS %I ON %I', op, t);
     END LOOP;
   END LOOP;
 END $$;
 
--- opportunities
-CREATE POLICY auth_select ON opportunities FOR SELECT TO authenticated USING (true);
-CREATE POLICY auth_insert ON opportunities FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY auth_update ON opportunities FOR UPDATE TO authenticated USING (true);
-CREATE POLICY auth_delete ON opportunities FOR DELETE TO authenticated USING (true);
+-- opportunites
+CREATE POLICY auth_select ON opportunites FOR SELECT TO authenticated USING (true);
+CREATE POLICY auth_insert ON opportunites FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY auth_update ON opportunites FOR UPDATE TO authenticated USING (true);
+CREATE POLICY auth_delete ON opportunites FOR DELETE TO authenticated USING (true);
 
 -- contacts
 CREATE POLICY auth_select ON contacts FOR SELECT TO authenticated USING (true);
@@ -126,19 +126,19 @@ CREATE POLICY auth_insert ON contacts FOR INSERT TO authenticated WITH CHECK (tr
 CREATE POLICY auth_update ON contacts FOR UPDATE TO authenticated USING (true);
 CREATE POLICY auth_delete ON contacts FOR DELETE TO authenticated USING (true);
 
--- agenda
-CREATE POLICY auth_select ON agenda FOR SELECT TO authenticated USING (true);
-CREATE POLICY auth_insert ON agenda FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY auth_update ON agenda FOR UPDATE TO authenticated USING (true);
-CREATE POLICY auth_delete ON agenda FOR DELETE TO authenticated USING (true);
+-- rendez_vous
+CREATE POLICY auth_select ON rendez_vous FOR SELECT TO authenticated USING (true);
+CREATE POLICY auth_insert ON rendez_vous FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY auth_update ON rendez_vous FOR UPDATE TO authenticated USING (true);
+CREATE POLICY auth_delete ON rendez_vous FOR DELETE TO authenticated USING (true);
 
 
 -- ── 4. REALTIME ──────────────────────────────────────────────
 -- Broadcasts row-level changes to connected clients.
-ALTER PUBLICATION supabase_realtime ADD TABLE opportunities, contacts, agenda;
+ALTER PUBLICATION supabase_realtime ADD TABLE opportunites, contacts, rendez_vous;
 
 
 -- ── 5. VERIFY ────────────────────────────────────────────────
 -- Run as anon to confirm no data is exposed without a JWT:
--- SET ROLE anon; SELECT * FROM opportunities; -- must return 0 rows
+-- SET ROLE anon; SELECT * FROM opportunites; -- must return 0 rows
 -- RESET ROLE;

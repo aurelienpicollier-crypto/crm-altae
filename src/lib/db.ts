@@ -9,7 +9,7 @@ import type {
 
 export async function dbFetchOpportunities(): Promise<Opportunity[]> {
   const { data, error } = await supabase
-    .from('opportunities')
+    .from('opportunites')
     .select('*')
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
@@ -18,7 +18,7 @@ export async function dbFetchOpportunities(): Promise<Opportunity[]> {
 
 export async function dbInsertOpportunity(row: OpportunityInsert): Promise<Opportunity> {
   const { data, error } = await supabase
-    .from('opportunities')
+    .from('opportunites')
     .insert(row)
     .select()
     .single();
@@ -31,7 +31,7 @@ export async function dbUpdateOpportunity(
   updates: Partial<OpportunityInsert>,
 ): Promise<Opportunity> {
   const { data, error } = await supabase
-    .from('opportunities')
+    .from('opportunites')
     .update(updates)
     .eq('id', id)
     .select()
@@ -41,7 +41,7 @@ export async function dbUpdateOpportunity(
 }
 
 export async function dbDeleteOpportunity(id: string): Promise<void> {
-  const { error } = await supabase.from('opportunities').delete().eq('id', id);
+  const { error } = await supabase.from('opportunites').delete().eq('id', id);
   if (error) throw new Error(error.message);
 }
 
@@ -89,7 +89,7 @@ export async function dbDeleteContact(id: string): Promise<void> {
 
 export async function dbFetchAppointments(): Promise<Appointment[]> {
   const { data, error } = await supabase
-    .from('agenda')
+    .from('rendez_vous')
     .select('*')
     .order('date', { ascending: true });
   if (error) throw new Error(error.message);
@@ -98,7 +98,7 @@ export async function dbFetchAppointments(): Promise<Appointment[]> {
 
 export async function dbInsertAppointment(row: AppointmentInsert): Promise<Appointment> {
   const { data, error } = await supabase
-    .from('agenda')
+    .from('rendez_vous')
     .insert(row)
     .select()
     .single();
@@ -111,7 +111,7 @@ export async function dbUpdateAppointment(
   updates: Partial<AppointmentInsert>,
 ): Promise<Appointment> {
   const { data, error } = await supabase
-    .from('agenda')
+    .from('rendez_vous')
     .update(updates)
     .eq('id', id)
     .select()
@@ -121,6 +121,6 @@ export async function dbUpdateAppointment(
 }
 
 export async function dbDeleteAppointment(id: string): Promise<void> {
-  const { error } = await supabase.from('agenda').delete().eq('id', id);
+  const { error } = await supabase.from('rendez_vous').delete().eq('id', id);
   if (error) throw new Error(error.message);
 }

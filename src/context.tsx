@@ -116,7 +116,7 @@ export function CRMProvider({ children }: { children: React.ReactNode }) {
       .channel('crm-realtime')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'opportunities' },
+        { event: '*', schema: 'public', table: 'opportunites' },
         (payload) => {
           const id = (payload.new as Opportunity | undefined)?.id
                   ?? (payload.old as Opportunity | undefined)?.id ?? '';
@@ -146,7 +146,7 @@ export function CRMProvider({ children }: { children: React.ReactNode }) {
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'agenda' },
+        { event: '*', schema: 'public', table: 'rendez_vous' },
         (payload) => {
           const id = (payload.new as Appointment | undefined)?.id
                   ?? (payload.old as Appointment | undefined)?.id ?? '';
