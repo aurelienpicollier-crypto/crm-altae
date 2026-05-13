@@ -6,7 +6,11 @@ import type { ContactInsert } from '../types';
 import ContactForm from '../components/ContactForm';
 import { exportContacts } from '../export';
 
-const SECTEURS = ['Finance', 'Industrie', 'Santé', 'Énergie', 'Technologie', 'Retail', 'Public', 'Autre'];
+const SECTEURS = [
+  'Cabinet d\'expertise comptable', 'Conseil', 'Énergie', 'Finance',
+  'Greentech / Cleantech', 'Hospitality', 'Industrie', 'Public',
+  'Restauration', 'Retail', 'Santé', 'Technologie', 'Autre',
+];
 
 export default function Contacts() {
   const { data, addContact } = useCRM();

@@ -3,7 +3,11 @@ import { X } from 'lucide-react';
 import type { Contact, ContactInsert, ContactType } from '../types';
 import { useCRM } from '../context';
 
-const SECTEURS = ['Finance', 'Industrie', 'Santé', 'Énergie', 'Technologie', 'Retail', 'Public', 'Autre'];
+const SECTEURS = [
+  'Cabinet d\'expertise comptable', 'Conseil', 'Énergie', 'Finance',
+  'Greentech / Cleantech', 'Hospitality', 'Industrie', 'Public',
+  'Restauration', 'Retail', 'Santé', 'Technologie', 'Autre',
+];
 const TITRES   = ['M.', 'Mme', 'Dr', 'Pr', ''];
 
 interface Props {

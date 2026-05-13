@@ -6,8 +6,9 @@ import { AVANCEMENT_LABELS, stageToFields, fieldsToStage } from '../types';
 import { useCRM } from '../context';
 
 const TYPE_MISSIONS = [
-  'Conseil stratégique', 'Transformation digitale', 'Management de transition',
-  'Audit & Diagnostic', 'Formation', 'Autre',
+  'Audit & Diagnostic', 'Autre', 'Conseil stratégique', 'Expertise comptable',
+  'Formation', 'Management de transition', 'Modélisation / Création outil',
+  'Transformation digitale',
 ];
 
 interface ComboboxOption { id: string; label: string; }
