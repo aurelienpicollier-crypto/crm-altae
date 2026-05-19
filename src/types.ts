@@ -69,6 +69,7 @@ export interface Contact {
   sector?:            string;
   revenue?:           number;
   address?:           string;
+  relation_status?:   string;
   comments:           Comment[];
   created_at:         string;
   created_by:         string;

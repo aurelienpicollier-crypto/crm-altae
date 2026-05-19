@@ -11,6 +11,21 @@ const SECTEURS = [
   'Greentech / Cleantech', 'Hospitality', 'Industrie', 'Public',
   'Restauration', 'Retail', 'Santé', 'Technologie', 'Autre',
 ];
+const RELATION_STATUTS = [
+  { value: 'prospect',      label: 'Prospect' },
+  { value: 'client',        label: 'Client actif' },
+  { value: 'ancien_client', label: 'Ancien client' },
+  { value: 'partenaire',    label: 'Partenaire / Réseau' },
+];
+
+function relationBadge(status: string | undefined) {
+  switch (status) {
+    case 'client':        return <span className="badge badge-green">Client actif</span>;
+    case 'ancien_client': return <span className="badge badge-orange">Ancien client</span>;
+    case 'partenaire':    return <span className="badge badge-blue">Partenaire / Réseau</span>;
+    default:              return <span className="badge badge-gray">Prospect</span>;
+  }
+}
 
 export default function Contacts() {
   const { data, addContact } = useCRM();
@@ -20,6 +35,7 @@ export default function Contacts() {
   const [saveErr,   setSaveErr]   = useState<string | null>(null);
   const [filterEntreprise, setFilterEntreprise] = useState('');
   const [filterSecteur,    setFilterSecteur]    = useState('');
+  const [filterStatut,     setFilterStatut]     = useState('');
   const [filterDateMin,    setFilterDateMin]    = useState('');
 
   const entreprises = useMemo(() => {
@@ -42,10 +58,17 @@ export default function Contacts() {
           if (!emp || emp.sector !== filterSecteur) return false;
         }
       }
+      if (filterStatut) {
+        if (c.type === 'company' && c.relation_status !== filterStatut) return false;
+        if (c.type === 'person') {
+          const emp = data.contacts.find(e => e.id === c.parent_company_id);
+          if (!emp || emp.relation_status !== filterStatut) return false;
+        }
+      }
       if (filterDateMin && c.last_contact_date && c.last_contact_date < filterDateMin) return false;
       return true;
     });
-  }, [data.contacts, filterEntreprise, filterSecteur, filterDateMin]);
+  }, [data.contacts, filterEntreprise, filterSecteur, filterStatut, filterDateMin]);
 
   async function handleSave(row: ContactInsert) {
     setSaving(true); setSaveErr(null);
@@ -62,10 +85,11 @@ export default function Contacts() {
   function clearFilters() {
     setFilterEntreprise('');
     setFilterSecteur('');
+    setFilterStatut('');
     setFilterDateMin('');
   }
 
-  const hasFilters = filterEntreprise || filterSecteur || filterDateMin;
+  const hasFilters = filterEntreprise || filterSecteur || filterStatut || filterDateMin;
 
   return (
     <>
@@ -98,6 +122,13 @@ export default function Contacts() {
             </select>
           </div>
           <div className="filter-group">
+            <span className="filter-label">Statut</span>
+            <select className="form-select" value={filterStatut} onChange={e => setFilterStatut(e.target.value)}>
+              <option value="">Tous</option>
+              {RELATION_STATUTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          </div>
+          <div className="filter-group">
             <span className="filter-label">Dernier contact depuis</span>
             <input type="date" className="form-input" value={filterDateMin} onChange={e => setFilterDateMin(e.target.value)} />
           </div>
@@ -117,6 +148,7 @@ export default function Contacts() {
                 <th>Prénom</th>
                 <th>Nom / Raison sociale</th>
                 <th>Secteur / Poste</th>
+                <th>Statut</th>
                 <th>Entreprise</th>
                 <th>Téléphone</th>
                 <th>Email</th>
@@ -126,7 +158,7 @@ export default function Contacts() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8}>
+                  <td colSpan={9}>
                     <div className="empty-state">
                       <p>Aucun contact trouvé.<br />Cliquez sur « Nouveau contact » pour commencer.</p>
                     </div>
@@ -149,6 +181,7 @@ export default function Contacts() {
                       {c.type === 'person' ? (c.last_name || '—') : (c.company_name || '—')}
                     </td>
                     <td>{c.type === 'person' ? (c.position || '—') : (c.sector || '—')}</td>
+                    <td>{c.type === 'company' ? relationBadge(c.relation_status) : '—'}</td>
                     <td>{entreprise ? (entreprise.company_name || '—') : '—'}</td>
                     <td>{c.phone || '—'}</td>
                     <td>{c.email || '—'}</td>

@@ -9,6 +9,12 @@ const SECTEURS = [
   'Restauration', 'Retail', 'Santé', 'Technologie', 'Autre',
 ];
 const TITRES   = ['M.', 'Mme', 'Dr', 'Pr', ''];
+const RELATION_STATUTS = [
+  { value: 'prospect',      label: 'Prospect' },
+  { value: 'client',        label: 'Client actif' },
+  { value: 'ancien_client', label: 'Ancien client' },
+  { value: 'partenaire',    label: 'Partenaire / Réseau' },
+];
 
 interface Props {
   initial?: Contact;
@@ -33,10 +39,11 @@ export default function ContactForm({ initial, saving, error, onSave, onClose }:
   const [lastContactDate, setLastContactDate]  = useState(initial?.last_contact_date ?? '');
 
   // Company fields
-  const [companyName, setCompanyName] = useState(initial?.company_name ?? '');
-  const [sector,      setSector]      = useState(initial?.sector       ?? '');
-  const [revenue,     setRevenue]     = useState(String(initial?.revenue ?? ''));
-  const [address,     setAddress]     = useState(initial?.address      ?? '');
+  const [companyName,     setCompanyName]     = useState(initial?.company_name     ?? '');
+  const [sector,          setSector]          = useState(initial?.sector           ?? '');
+  const [revenue,         setRevenue]         = useState(String(initial?.revenue   ?? ''));
+  const [address,         setAddress]         = useState(initial?.address          ?? '');
+  const [relationStatus,  setRelationStatus]  = useState(initial?.relation_status  ?? 'prospect');
 
   const companies = data.contacts.filter(c => c.type === 'company' && c.id !== initial?.id);
 
@@ -59,10 +66,11 @@ export default function ContactForm({ initial, saving, error, onSave, onClose }:
       if (!companyName.trim()) return;
       onSave({
         ...base, type,
-        company_name: companyName.trim(),
+        company_name:    companyName.trim(),
         sector,
-        revenue:  parseFloat(revenue) || undefined,
-        address:  address.trim(),
+        revenue:         parseFloat(revenue) || undefined,
+        address:         address.trim(),
+        relation_status: relationStatus,
       });
     }
   }
@@ -159,9 +167,17 @@ export default function ContactForm({ initial, saving, error, onSave, onClose }:
                     <input className="form-input" type="number" min="0" value={revenue} onChange={e => setRevenue(e.target.value)} placeholder="0" />
                   </div>
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Adresse</label>
-                  <input className="form-input" value={address} onChange={e => setAddress(e.target.value)} placeholder="123 rue de la Paix, 75001 Paris" />
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Adresse</label>
+                    <input className="form-input" value={address} onChange={e => setAddress(e.target.value)} placeholder="123 rue de la Paix, 75001 Paris" />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Statut de la relation</label>
+                    <select className="form-select" value={relationStatus} onChange={e => setRelationStatus(e.target.value)}>
+                      {RELATION_STATUTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                    </select>
+                  </div>
                 </div>
               </>
             )}
