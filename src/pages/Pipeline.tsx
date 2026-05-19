@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, X, TrendingUp, DollarSign, Target, Download } from 'lucide-react';
+import { Plus, X, TrendingUp, DollarSign, Target, Download, Bell } from 'lucide-react';
 import { useCRM } from '../context';
 import type { OpportunityInsert, UIStage } from '../types';
 import { AVANCEMENT_LABELS, fieldsToStage } from '../types';
@@ -54,6 +54,9 @@ export default function Pipeline() {
   const totalPipeline = filtered.reduce((s, o) => s + (o.estimated_amount || 0), 0);
   const totalPondere  = filtered.reduce((s, o) => s + (o.weighted_amount  || 0), 0);
   const activeCount   = filtered.filter(o => o.status === 'active').length;
+  const actionCount   = data.contacts.filter(
+    c => c.type === 'person' && c.action_status && c.action_status !== 'aucun'
+  ).length;
 
   async function handleSave(row: OpportunityInsert) {
     setSaving(true); setSaveErr(null);
@@ -88,6 +91,13 @@ export default function Pipeline() {
       </div>
 
       <div className="page-body">
+        {actionCount > 0 && (
+          <div className="action-alert" onClick={() => navigate('/contacts')} style={{ cursor: 'pointer' }}>
+            <Bell size={15} />
+            <span><strong>{actionCount}</strong> contact(s) nécessitent une action</span>
+            <span className="action-alert-link">Voir les contacts →</span>
+          </div>
+        )}
         <div className="stats-row">
           <div className="stat-card">
             <div className="stat-label"><TrendingUp size={12} style={{ display: 'inline', marginRight: 4 }} />Pipeline total</div>

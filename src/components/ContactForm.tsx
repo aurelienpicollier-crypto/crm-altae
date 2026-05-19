@@ -15,6 +15,12 @@ const RELATION_STATUTS = [
   { value: 'ancien_client', label: 'Ancien client' },
   { value: 'partenaire',    label: 'Partenaire / Réseau' },
 ];
+const ACTION_STATUTS = [
+  { value: 'aucun',       label: 'Aucun' },
+  { value: 'a_contacter', label: '🔔 À contacter' },
+  { value: 'en_attente',  label: '⏳ En attente de réponse' },
+  { value: 'relancer',    label: '⚡ À relancer' },
+];
 
 interface Props {
   initial?: Contact;
@@ -37,6 +43,7 @@ export default function ContactForm({ initial, saving, error, onSave, onClose }:
   const [email,           setEmail]            = useState(initial?.email            ?? '');
   const [parentCompanyId, setParentCompanyId]  = useState(initial?.parent_company_id ?? '');
   const [lastContactDate, setLastContactDate]  = useState(initial?.last_contact_date ?? '');
+  const [actionStatus,    setActionStatus]     = useState(initial?.action_status     ?? 'aucun');
 
   // Company fields
   const [companyName,     setCompanyName]     = useState(initial?.company_name     ?? '');
@@ -61,6 +68,7 @@ export default function ContactForm({ initial, saving, error, onSave, onClose }:
         email:             email.trim(),
         last_contact_date: lastContactDate || undefined,
         parent_company_id: parentCompanyId || undefined,
+        action_status:     actionStatus,
       });
     } else {
       if (!companyName.trim()) return;
@@ -146,6 +154,12 @@ export default function ContactForm({ initial, saving, error, onSave, onClose }:
                     <label className="form-label">Dernier contact</label>
                     <input className="form-input" type="date" value={lastContactDate} onChange={e => setLastContactDate(e.target.value)} />
                   </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Statut d'action</label>
+                  <select className="form-select" value={actionStatus} onChange={e => setActionStatus(e.target.value)}>
+                    {ACTION_STATUTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                  </select>
                 </div>
               </>
             ) : (

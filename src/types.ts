@@ -70,6 +70,7 @@ export interface Contact {
   revenue?:           number;
   address?:           string;
   relation_status?:   string;
+  action_status?:     string;
   comments:           Comment[];
   created_at:         string;
   created_by:         string;

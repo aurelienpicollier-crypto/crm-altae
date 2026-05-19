@@ -162,6 +162,7 @@ ALTER TABLE contacts
   ADD COLUMN IF NOT EXISTS address            TEXT,
   ADD COLUMN IF NOT EXISTS comments           JSONB       NOT NULL DEFAULT '[]',
   ADD COLUMN IF NOT EXISTS relation_status    TEXT                 DEFAULT 'prospect',
+  ADD COLUMN IF NOT EXISTS action_status      TEXT                 DEFAULT 'aucun',
   ADD COLUMN IF NOT EXISTS created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   ADD COLUMN IF NOT EXISTS created_by         UUID        REFERENCES auth.users(id) DEFAULT auth.uid();
 

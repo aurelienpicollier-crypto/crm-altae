@@ -27,6 +27,15 @@ function relationBadge(status: string | undefined) {
   }
 }
 
+function actionBadge(status: string | undefined) {
+  switch (status) {
+    case 'a_contacter':  return <span className="badge badge-red">🔔 À contacter</span>;
+    case 'en_attente':   return <span className="badge badge-orange">⏳ En attente</span>;
+    case 'relancer':     return <span className="badge badge-purple">⚡ À relancer</span>;
+    default:             return null;
+  }
+}
+
 export default function Contacts() {
   const { data, addContact } = useCRM();
   const navigate = useNavigate();
@@ -36,6 +45,7 @@ export default function Contacts() {
   const [filterEntreprise, setFilterEntreprise] = useState('');
   const [filterSecteur,    setFilterSecteur]    = useState('');
   const [filterStatut,     setFilterStatut]     = useState('');
+  const [filterAction,     setFilterAction]     = useState(false);
   const [filterDateMin,    setFilterDateMin]    = useState('');
 
   const entreprises = useMemo(() => {
@@ -65,10 +75,14 @@ export default function Contacts() {
           if (!emp || emp.relation_status !== filterStatut) return false;
         }
       }
+      if (filterAction) {
+        if (c.type !== 'person') return false;
+        if (!c.action_status || c.action_status === 'aucun') return false;
+      }
       if (filterDateMin && c.last_contact_date && c.last_contact_date < filterDateMin) return false;
       return true;
     });
-  }, [data.contacts, filterEntreprise, filterSecteur, filterStatut, filterDateMin]);
+  }, [data.contacts, filterEntreprise, filterSecteur, filterStatut, filterAction, filterDateMin]);
 
   async function handleSave(row: ContactInsert) {
     setSaving(true); setSaveErr(null);
@@ -86,10 +100,11 @@ export default function Contacts() {
     setFilterEntreprise('');
     setFilterSecteur('');
     setFilterStatut('');
+    setFilterAction(false);
     setFilterDateMin('');
   }
 
-  const hasFilters = filterEntreprise || filterSecteur || filterStatut || filterDateMin;
+  const hasFilters = filterEntreprise || filterSecteur || filterStatut || filterAction || filterDateMin;
 
   return (
     <>
@@ -131,6 +146,13 @@ export default function Contacts() {
           <div className="filter-group">
             <span className="filter-label">Dernier contact depuis</span>
             <input type="date" className="form-input" value={filterDateMin} onChange={e => setFilterDateMin(e.target.value)} />
+          </div>
+          <div className="filter-group" style={{ justifyContent: 'flex-end' }}>
+            <span className="filter-label" style={{ opacity: 0 }}>-</span>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap' }}>
+              <input type="checkbox" checked={filterAction} onChange={e => setFilterAction(e.target.checked)} />
+              À traiter uniquement
+            </label>
           </div>
           {hasFilters && (
             <div className="filter-group" style={{ justifyContent: 'flex-end' }}>
@@ -181,7 +203,7 @@ export default function Contacts() {
                       {c.type === 'person' ? (c.last_name || '—') : (c.company_name || '—')}
                     </td>
                     <td>{c.type === 'person' ? (c.position || '—') : (c.sector || '—')}</td>
-                    <td>{c.type === 'company' ? relationBadge(c.relation_status) : '—'}</td>
+                    <td>{c.type === 'company' ? relationBadge(c.relation_status) : (actionBadge(c.action_status) ?? '—')}</td>
                     <td>{entreprise ? (entreprise.company_name || '—') : '—'}</td>
                     <td>{c.phone || '—'}</td>
                     <td>{c.email || '—'}</td>
